@@ -1,0 +1,1 @@
+## Apicurio Maven Plugin
