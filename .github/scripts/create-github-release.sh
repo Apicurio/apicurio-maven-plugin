@@ -6,7 +6,7 @@ BRANCH="$2"
 REPOSITORY="$3"
 ACCESS_TOKEN="$4"
 
-generate_post_data()
+generate_post_data() 
 {
 cat <<EOF
 {
