@@ -5,6 +5,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.codehaus.plexus.util.SelectorUtils;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,6 +31,9 @@ public class VerifyDependenciesMojo extends AbstractMojo {
     @Parameter
     List<File> distributions;
 
+    @Parameter
+    List<String> ignoreFiles;
+
     /**
      * @see org.apache.maven.plugin.Mojo#execute()
      */
@@ -44,6 +48,9 @@ public class VerifyDependenciesMojo extends AbstractMojo {
             }
             if (distributions == null) {
                 distributions = List.of();
+            }
+            if (ignoreFiles == null) {
+                ignoreFiles = List.of();
             }
 
             getLog().info("Verifying dependencies in " + directories.size() + " directories");
@@ -76,7 +83,7 @@ public class VerifyDependenciesMojo extends AbstractMojo {
             // Validate those files.
             Set<String> invalidArtifacts = new TreeSet<>();
             filesToValidate.forEach(file -> {
-                if (!isValid(file)) {
+                if (!isIgnore(file) && !isValid(file)) {
                     invalidArtifacts.add(file);
                 }
             });
@@ -120,6 +127,15 @@ public class VerifyDependenciesMojo extends AbstractMojo {
 
     private boolean isValid(String artifactPath) {
         return artifactPath.contains("-redhat-") || artifactPath.contains(".redhat-");
+    }
+
+    private boolean isIgnore(String artifactPath) {
+        for (String ignorePattern : ignoreFiles) {
+            if (SelectorUtils.match(ignorePattern, artifactPath)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String serialize(Set<String> invalidArtifacts) {
