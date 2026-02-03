@@ -85,7 +85,7 @@ jobs:
       - name: Maven Deploy
         uses: nick-fields/retry@v3
         with:
-          timeout_minutes: 10
+          timeout_minutes: 60
           max_attempts: 5
           retry_on: error
           retry_wait_seconds: 120
