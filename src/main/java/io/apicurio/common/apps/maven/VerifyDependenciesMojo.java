@@ -217,8 +217,21 @@ public class VerifyDependenciesMojo extends AbstractMojo {
      * @return true if the artifact is valid, false otherwise
      */
     private boolean isValid(String artifactPath) {
-        boolean hasRedhatDash = artifactPath.contains("-redhat-");
-        boolean hasRedhatDot = artifactPath.contains(".redhat-");
+        // Extract the file name from the artifact path
+        // Format: "prefix::path/to/file" where prefix is either a directory path or distribution name
+        String fileName;
+        if (artifactPath.contains("::")) {
+            String pathPart = artifactPath.substring(artifactPath.indexOf("::") + 2);
+            // Extract just the file name from the path (handles both / and \ separators)
+            int lastSlash = Math.max(pathPart.lastIndexOf('/'), pathPart.lastIndexOf('\\'));
+            fileName = lastSlash >= 0 ? pathPart.substring(lastSlash + 1) : pathPart;
+        } else {
+            // Fallback if format is unexpected
+            fileName = artifactPath;
+        }
+        
+        boolean hasRedhatDash = fileName.contains("-redhat-");
+        boolean hasRedhatDot = fileName.contains(".redhat-");
         boolean valid = hasRedhatDash || hasRedhatDot;
 
         if (verbose && !valid) {

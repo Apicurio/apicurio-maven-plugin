@@ -37,3 +37,5 @@ hs_err_pid*
 # Repository index files (generated)
 PROJECT_INDEX.md
 PROJECT_INDEX.json
+/.serena/
+/.claude/
