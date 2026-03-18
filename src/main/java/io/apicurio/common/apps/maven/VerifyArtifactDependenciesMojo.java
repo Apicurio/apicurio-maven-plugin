@@ -21,6 +21,8 @@ import org.eclipse.aether.collection.DependencyCollectionException;
 import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.repository.LocalRepository;
 import org.eclipse.aether.repository.RemoteRepository;
+import org.eclipse.aether.resolution.ArtifactRequest;
+import org.eclipse.aether.resolution.ArtifactResolutionException;
 
 /**
  * Verifies that all transitive dependencies of a single Maven artifact are productized
@@ -65,6 +67,14 @@ public class VerifyArtifactDependenciesMojo extends AbstractVerifyMojo {
      */
     @Parameter(property = "localRepository")
     File localRepository;
+
+    /**
+     * When set to {@code true}, disables SSL certificate verification for remote repository
+     * connections. This is useful for testing against repositories with self-signed or
+     * otherwise invalid certificates. Not recommended for production use.
+     */
+    @Parameter(property = "insecure", defaultValue = "false")
+    boolean insecure;
 
     @SuppressWarnings("deprecation")
     @Component
@@ -114,6 +124,9 @@ public class VerifyArtifactDependenciesMojo extends AbstractVerifyMojo {
 
             // Configure the session with a custom local repository if specified.
             RepositorySystemSession session = configureSession();
+
+            // Verify the artifact exists by resolving it.
+            resolveArtifact(session, repos, groupId, artifactId, version, extension);
 
             // Collect the dependency tree.
             CollectResult result = collectDependencyTree(session, repos, groupId,
@@ -190,6 +203,34 @@ public class VerifyArtifactDependenciesMojo extends AbstractVerifyMojo {
     }
 
     /**
+     * Resolves the specified artifact to verify it exists in the configured repositories.
+     * Throws a {@link MojoFailureException} if the artifact cannot be found.
+     *
+     * @param session the repository session
+     * @param repos the remote repositories to search
+     * @param groupId the artifact's groupId
+     * @param artifactId the artifact's artifactId
+     * @param version the artifact's version
+     * @param extension the artifact's extension/packaging
+     * @throws MojoFailureException if the artifact cannot be resolved
+     */
+    private void resolveArtifact(RepositorySystemSession session,
+            List<RemoteRepository> repos, String groupId, String artifactId,
+            String version, String extension) throws MojoFailureException {
+        ArtifactRequest request = new ArtifactRequest();
+        request.setArtifact(new DefaultArtifact(groupId, artifactId, extension, version));
+        request.setRepositories(repos);
+
+        try {
+            repositorySystem.resolveArtifact(session, request);
+        } catch (ArtifactResolutionException e) {
+            throw new MojoFailureException("Artifact not found: " + groupId + ":"
+                    + artifactId + ":" + version + ":" + extension
+                    + ". Ensure the artifact exists in the configured repositories.", e);
+        }
+    }
+
+    /**
      * Builds the list of remote repositories from the configured repository URLs.
      *
      * @return the list of remote repositories
@@ -222,20 +263,30 @@ public class VerifyArtifactDependenciesMojo extends AbstractVerifyMojo {
     }
 
     /**
-     * Configures the repository session, optionally overriding the local repository path.
+     * Configures the repository session, optionally overriding the local repository path
+     * and/or disabling SSL certificate verification.
      *
      * @return the configured session
      */
     private RepositorySystemSession configureSession() {
-        if (localRepository == null) {
+        if (localRepository == null && !insecure) {
             return repoSession;
         }
 
-        getLog().info("Using local repository: " + localRepository.getAbsolutePath());
         DefaultRepositorySystemSession session = new DefaultRepositorySystemSession(
                 repoSession);
-        session.setLocalRepositoryManager(repositorySystem.newLocalRepositoryManager(
-                session, new LocalRepository(localRepository)));
+
+        if (localRepository != null) {
+            getLog().info("Using local repository: " + localRepository.getAbsolutePath());
+            session.setLocalRepositoryManager(repositorySystem.newLocalRepositoryManager(
+                    session, new LocalRepository(localRepository)));
+        }
+
+        if (insecure) {
+            getLog().warn("SSL certificate verification is DISABLED.");
+            session.setConfigProperty("aether.connector.https.securityMode", "insecure");
+        }
+
         return session;
     }
 
