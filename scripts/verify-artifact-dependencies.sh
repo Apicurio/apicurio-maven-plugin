@@ -272,7 +272,7 @@ echo "Generated pom.xml in ${WORK_DIR}"
 echo ""
 
 # ---- Build MAVEN_OPTS ----
-LOCAL_REPO="/tmp/repo${SECONDS}"
+LOCAL_REPO=$(mktemp -d "${TMPDIR:-/tmp}/verify-artifact-repo-XXXXXXXXXX")
 MAVEN_OPTS_EXTRA=""
 if [[ "$INSECURE" == "true" ]]; then
     MAVEN_OPTS_EXTRA="-Daether.connector.https.securityMode=insecure"
@@ -292,8 +292,11 @@ MVN_EXIT=$?
 set -e
 
 # ---- Cleanup ----
+echo ""
+echo "Cleaning up local repo: ${LOCAL_REPO}"
+rm -rf "$LOCAL_REPO"
+
 if [[ "$CLEANUP" == "true" ]]; then
-    echo ""
     echo "Cleaning up working directory: ${WORK_DIR}"
     rm -rf "$WORK_DIR"
 fi
